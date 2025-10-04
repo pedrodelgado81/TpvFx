@@ -1,4 +1,4 @@
-package es.um.informatica.TpvFx.adapters;
+package es.um.informatica.TpvFx.adapters.display;
 
 import java.io.IOException;
 

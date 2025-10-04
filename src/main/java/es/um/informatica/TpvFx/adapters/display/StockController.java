@@ -1,4 +1,4 @@
-package es.um.informatica.TpvFx.adapters;
+package es.um.informatica.TpvFx.adapters.display;
 
 import java.io.IOException;
 import java.util.Optional;
@@ -9,6 +9,7 @@ import es.um.informatica.TpvFx.Constantes;
 import es.um.informatica.TpvFx.adapters.persistence.ProductoDTO;
 import es.um.informatica.TpvFx.adapters.persistence.ProductoMapper;
 import es.um.informatica.TpvFx.adapters.persistence.ProductoPersistenceApapter;
+import es.um.informatica.TpvFx.adapters.repository.ProductoRepository;
 import es.um.informatica.TpvFx.model.Producto;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -52,14 +53,14 @@ public class StockController {
 
 	Producto productoSeleccionado;
 
-	private ProductoPersistenceApapter productoPersistenceAdapter;
+	private ProductoRepository productoRepository;
 
 	// Este metodo se ejecuta al cargar la pantalla correspondiente
 	@FXML
 	public void initialize() {
 		// Persistence adapter para leer/guardar sobre XML
-		productoPersistenceAdapter = ProductoPersistenceApapter.getInscante();
-
+		productoRepository = ProductoRepository.getInscante();
+		productoRepository.cargaProductos();
 		// Creo los manejadores para los campos de las columnas
 		colCodigo.setCellValueFactory(new PropertyValueFactory<>("codigo"));
 		colDescripcion.setCellValueFactory(new PropertyValueFactory<>("descripcion"));
@@ -69,9 +70,7 @@ public class StockController {
 		// Cargo la lista de productos
 		ObservableList<Producto> lista = null;
 		try {
-			lista = FXCollections.observableArrayList(
-					productoPersistenceAdapter.cargarProductos(Constantes.RUTA_FICHERO).getProductos().stream()
-							.map(producto -> ProductoMapper.fromProuctoDTO(producto)).collect(Collectors.toList()));
+			lista = FXCollections.observableArrayList(productoRepository.getProductos());
 		} catch (Exception e) {
 			// FIXME: Cambiar por log
 			e.printStackTrace();
@@ -141,12 +140,7 @@ public class StockController {
 				}
 				return null;
 			}
-		});
-
-		// --- Mostrar y obtener el resultado ---
-		dialog.showAndWait().ifPresent(producto -> {
-			System.out.println("Producto creado: " + producto);
-		});
+		});	
 	}
 
 	@FXML
@@ -162,8 +156,10 @@ public class StockController {
 			Optional<ButtonType> result = confirmarEliminacion.showAndWait();
 			if (result.get() == ButtonType.OK) {
 				tablaProductos.getItems().remove(this.productoSeleccionado);
-				this.productoSeleccionado = null;
+				this.productoSeleccionado = null;				
 				tablaProductos.refresh();
+				tablaProductos.getSelectionModel().clearSelection();
+
 			}
 		}
 

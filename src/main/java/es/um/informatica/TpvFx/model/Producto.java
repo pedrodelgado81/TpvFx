@@ -62,9 +62,7 @@ public class Producto {
 		if (getClass() != obj.getClass())
 			return false;
 		Producto other = (Producto) obj;
-		return cantidad == other.cantidad && Objects.equals(codigo, other.codigo)
-				&& Objects.equals(descripcion, other.descripcion)
-				&& Float.floatToIntBits(precio) == Float.floatToIntBits(other.precio);
+		return codigo.equals(other.getCodigo());
 	}
 
 }
