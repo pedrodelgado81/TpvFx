@@ -141,6 +141,11 @@ public class StockController {
 				return null;
 			}
 		});	
+		
+		// --- Mostrar el dialogo y obtener el resultado ---
+				dialog.showAndWait().ifPresent(producto -> {
+					System.out.println("Producto creado: " + producto);
+				});
 	}
 
 	@FXML
