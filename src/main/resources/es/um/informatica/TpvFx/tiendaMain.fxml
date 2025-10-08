@@ -61,7 +61,7 @@
 			</columns>
 		</TableView>
 		<Button layoutX="721.0" layoutY="294.0" mnemonicParsing="false"
-			prefHeight="25.0" prefWidth="72.0" text="Quitar" />
+			prefHeight="25.0" prefWidth="72.0" text="Quitar" onAction="#quitarProducto" />
 		<Label layoutX="494.0" layoutY="298.0" text="Total:" />
 		<TextField editable="false" layoutX="534.0" layoutY="294.0"
 			prefHeight="25.0" prefWidth="72.0" fx:id="totalField"/>

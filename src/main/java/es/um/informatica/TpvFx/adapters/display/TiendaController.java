@@ -125,14 +125,15 @@ public class TiendaController {
 	// Cuando hacemos click en un producto lo añadimos a la lista de la compra o
 	// incrementamos su cantidad si ya estaba
 	private void aniadeListaCompra(Producto producto) {
-		//Como el producto se carga de la lista de stock viene con la cantidad de stock que tuviera
-		//Forzamos que la cantidad del producto sea siempre 1
+		// Como el producto se carga de la lista de stock viene con la cantidad de stock
+		// que tuviera
+		// Forzamos que la cantidad del producto sea siempre 1
 		producto.setCantidad(1);
-		//Si el producto no lo tengo en la lista de la compra llo aniado
+		// Si el producto no lo tengo en la lista de la compra llo aniado
 		if (!tablaProductos.getItems().contains(producto)) {
 			tablaProductos.getItems().add(producto);
-		} 
-		//Si tengo el producto en la lista de la compra, incremento su cantidad
+		}
+		// Si tengo el producto en la lista de la compra, incremento su cantidad
 		else {
 			int productoEnLista = tablaProductos.getItems().indexOf(producto);
 			Producto productoSeleccionado = tablaProductos.getItems().get(productoEnLista);
@@ -154,6 +155,22 @@ public class TiendaController {
 		if (filtroProductos != null && filtroProductos.getText().length() > 0) {
 			cargaProductos(filtroProductos.getText());
 		}
+	}
+
+	@FXML
+	private void quitarProducto() {
+		tablaProductos.getItems().remove(this.productoSeleccionado);
+		this.productoSeleccionado = null;
+
+		//Actualizo el importe total
+		double total = tablaProductos.getItems().stream()
+				.mapToDouble(producto -> producto.getPrecio() * producto.getCantidad()).sum();
+		totalField.setText(String.format("%.2f", total));
+		totalField.setText("");
+
+		//Quito del componente visual la seleccion
+		tablaProductos.getSelectionModel().clearSelection();
+		tablaProductos.refresh();
 	}
 
 	@FXML
@@ -195,9 +212,9 @@ public class TiendaController {
 		// Mostrar diálogo y comprobar respuesta
 		Optional<ButtonType> response = dialog.showAndWait();
 		if (response.isPresent() && response.get() == confirmarCombraBtn) {
-			//Actualizamos el stock tras la compra
+			// Actualizamos el stock tras la compra
 			productoRepository.actualizaAlmacenConVenta(tablaProductos.getItems());
-			//Creamos una lista vacía nueva para limpiar la lista de la compra			
+			// Creamos una lista vacía nueva para limpiar la lista de la compra
 			tablaProductos.getItems().clear();
 			totalField.setText("");
 			tablaProductos.refresh();
