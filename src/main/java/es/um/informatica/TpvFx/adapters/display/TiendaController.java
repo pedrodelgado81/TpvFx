@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.logging.Logger;
 
 import es.um.informatica.TpvFx.App;
 import es.um.informatica.TpvFx.adapters.repository.ProductoRepositoryImpl;
@@ -27,6 +28,8 @@ import javafx.scene.layout.TilePane;
 import javafx.scene.layout.VBox;
 
 public class TiendaController {
+
+	private static final Logger logger = Logger.getLogger(TiendaController.class.getName());
 
 	private ProductoRepository productoRepository;
 
@@ -58,6 +61,8 @@ public class TiendaController {
 		productoRepository = ProductoRepositoryImpl.getInscante();
 		listaProductos = productoRepository.getProductos();
 		cargaProductos("");
+
+		// Aniadimos listener a la tabla de productos para poder seleccionarlo
 		tablaProductos.getSelectionModel().selectedItemProperty().addListener((obs, oldSelection, newSelection) -> {
 			if (newSelection != null) {
 				this.productoSeleccionado = newSelection;
@@ -73,23 +78,23 @@ public class TiendaController {
 		try {
 			lista = FXCollections.observableArrayList(new ArrayList<Producto>());
 		} catch (Exception e) {
-			// FIXME: Cambiar por log
-			e.printStackTrace();
+			logger.severe("Error inicializando tienda " + e.getMessage());
 		}
 		// Pasar lista a la tabla
 		tablaProductos.setItems(lista);
 
 	}
 
+	// Generamos el panel de productos seleccionables a partrir del filtro. Si es
+	// vacio son todos
 	private void cargaProductos(String filtro) {
-
 		TilePane contenedor = new TilePane();
-		contenedor.setPrefColumns(4); // máximo 3 productos por fila
+		contenedor.setPrefColumns(4); // máximo 4 productos por fila
 		contenedor.setHgap(10); // separación horizontal
 		contenedor.setVgap(10); // separación vertical
 		contenedor.setStyle("-fx-padding: 10;");
 
-		// Simulamos una lista de productos aplicando el filtro indiacdo
+		// Generamos una lista de productos aplicando el filtro indiacdo
 		listaProductos.stream().filter(producto -> producto.getDescripcion().contains(filtro)).forEach(producto -> {
 
 			// Crear labels
@@ -117,11 +122,18 @@ public class TiendaController {
 
 	}
 
+	// Cuando hacemos click en un producto lo añadimos a la lista de la compra o
+	// incrementamos su cantidad si ya estaba
 	private void aniadeListaCompra(Producto producto) {
+		//Como el producto se carga de la lista de stock viene con la cantidad de stock que tuviera
+		//Forzamos que la cantidad del producto sea siempre 1
 		producto.setCantidad(1);
+		//Si el producto no lo tengo en la lista de la compra llo aniado
 		if (!tablaProductos.getItems().contains(producto)) {
 			tablaProductos.getItems().add(producto);
-		} else {
+		} 
+		//Si tengo el producto en la lista de la compra, incremento su cantidad
+		else {
 			int productoEnLista = tablaProductos.getItems().indexOf(producto);
 			Producto productoSeleccionado = tablaProductos.getItems().get(productoEnLista);
 			productoSeleccionado.setCantidad(productoSeleccionado.getCantidad() + 1);
@@ -183,10 +195,15 @@ public class TiendaController {
 		// Mostrar diálogo y comprobar respuesta
 		Optional<ButtonType> response = dialog.showAndWait();
 		if (response.isPresent() && response.get() == confirmarCombraBtn) {
+			//Actualizamos el stock tras la compra
 			productoRepository.actualizaAlmacenConVenta(tablaProductos.getItems());
-			tablaProductos.setItems(FXCollections.observableArrayList(new ArrayList<Producto>()));
+			//Creamos una lista vacía nueva para limpiar la lista de la compra			
+			tablaProductos.getItems().clear();
+			totalField.setText("");
+			tablaProductos.refresh();
+			logger.info("Compra realizada");
 		} else {
-			System.out.println("Compra cancelada");
+			logger.info("Compra cancelada");
 		}
 
 	}

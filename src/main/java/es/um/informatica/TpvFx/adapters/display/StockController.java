@@ -215,7 +215,7 @@ public class StockController {
 				} else {
 					this.productoSeleccionado.setCantidad(this.productoSeleccionado.getCantidad() - decremento);
 				}
-				// TODO: Falta trasladar el aumento a productoRepository
+				// TODO: Falta trasladar la reduccion a productoRepository
 				reducirCantidadTextField.setText("");
 				tablaProductos.refresh();
 			} catch (NumberFormatException e) {
