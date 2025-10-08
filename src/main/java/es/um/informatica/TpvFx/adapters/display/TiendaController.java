@@ -6,8 +6,8 @@ import java.util.List;
 import java.util.Optional;
 
 import es.um.informatica.TpvFx.App;
-import es.um.informatica.TpvFx.adapters.persistence.ProductoDTO;
-import es.um.informatica.TpvFx.adapters.repository.ProductoRepository;
+import es.um.informatica.TpvFx.adapters.repository.ProductoRepositoryImpl;
+import es.um.informatica.TpvFx.application.port.ProductoRepository;
 import es.um.informatica.TpvFx.model.Producto;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -36,7 +36,7 @@ public class TiendaController {
 
 	@FXML
 	private TextField totalField;
-	
+
 	@FXML
 	private TableView<Producto> tablaProductos;
 
@@ -55,8 +55,7 @@ public class TiendaController {
 
 	@FXML
 	public void initialize() {
-		productoRepository = ProductoRepository.getInscante();
-		productoRepository.cargaProductos();
+		productoRepository = ProductoRepositoryImpl.getInscante();
 		listaProductos = productoRepository.getProductos();
 		cargaProductos("");
 		tablaProductos.getSelectionModel().selectedItemProperty().addListener((obs, oldSelection, newSelection) -> {
@@ -64,7 +63,7 @@ public class TiendaController {
 				this.productoSeleccionado = newSelection;
 			}
 		});
-		
+
 		colDescripcion.setCellValueFactory(new PropertyValueFactory<>("descripcion"));
 		colCantidad.setCellValueFactory(new PropertyValueFactory<>("cantidad"));
 		colPrecio.setCellValueFactory(new PropertyValueFactory<>("precio"));
@@ -90,7 +89,7 @@ public class TiendaController {
 		contenedor.setVgap(10); // separación vertical
 		contenedor.setStyle("-fx-padding: 10;");
 
-		// Simulamos una lista de productos
+		// Simulamos una lista de productos aplicando el filtro indiacdo
 		listaProductos.stream().filter(producto -> producto.getDescripcion().contains(filtro)).forEach(producto -> {
 
 			// Crear labels
@@ -106,7 +105,8 @@ public class TiendaController {
 			btnProducto.setPrefSize(100, 60);
 			btnProducto.setGraphic(vbox);
 			btnProducto.setOnAction(e -> {
-				aniadeListaCompra(new Producto(producto.getCodigo(),producto.getDescripcion(),1,producto.getPrecio()));
+				aniadeListaCompra(
+						new Producto(producto.getCodigo(), producto.getDescripcion(), 1, producto.getPrecio()));
 			});
 
 			contenedor.getChildren().add(btnProducto);
@@ -120,19 +120,19 @@ public class TiendaController {
 	private void aniadeListaCompra(Producto producto) {
 		producto.setCantidad(1);
 		if (!tablaProductos.getItems().contains(producto)) {
-			tablaProductos.getItems().add(producto);		
+			tablaProductos.getItems().add(producto);
 		} else {
 			int productoEnLista = tablaProductos.getItems().indexOf(producto);
 			Producto productoSeleccionado = tablaProductos.getItems().get(productoEnLista);
 			productoSeleccionado.setCantidad(productoSeleccionado.getCantidad() + 1);
 		}
-		
-		//Es necesario reemplazar , por . ya que String.format usa el formato espanio para los decimales
-		float total = Float.parseFloat(totalField.getText().isEmpty()?"0":totalField.getText().replace(",", "."));
-		
-		totalField.setText(String.format("%.2f", total+producto.getPrecio()));
-		
-		
+
+		// Es necesario reemplazar , por . ya que String.format usa el formato espanio
+		// para los decimales
+		float total = Float.parseFloat(totalField.getText().isEmpty() ? "0" : totalField.getText().replace(",", "."));
+
+		totalField.setText(String.format("%.2f", total + producto.getPrecio()));
+
 		tablaProductos.refresh();
 
 	}
@@ -162,31 +162,32 @@ public class TiendaController {
 		dialog.setHeaderText("Confirme su compra");
 
 		ButtonType confirmarCombraBtn = new ButtonType("Comprar", ButtonBar.ButtonData.OK_DONE);
-		dialog.getDialogPane().getButtonTypes().addAll(confirmarCombraBtn, ButtonType.CANCEL);		
-	    
-		//Se tiene que copiar la tabla inicial porque JavaFX traslada el elemento de nodo y no lo copia
-		//Para conservar la tabla en el otro panel se tiene que copiar
+		dialog.getDialogPane().getButtonTypes().addAll(confirmarCombraBtn, ButtonType.CANCEL);
+
+		// Se tiene que copiar la tabla inicial porque JavaFX traslada el elemento de
+		// nodo y no lo copia
+		// Para conservar la tabla en el otro panel se tiene que copiar
 		TableView<Producto> tablaDialog = new TableView<>();
 		tablaDialog.getColumns().addAll(tablaProductos.getColumns());
 		tablaDialog.setItems(tablaProductos.getItems()); // reutiliza los datos
-		
-	 // Total
-	    double total = tablaDialog.getItems().stream().mapToDouble(producto ->producto.getPrecio() * producto.getCantidad()).sum();
-	    Label lblTotal = new Label("Total: " + String.format("%.2f €", total));
-	    
-	    VBox content = new VBox(10, tablaDialog, lblTotal);
-	    content.setPrefSize(335, 400);
-	    dialog.getDialogPane().setContent(content);
 
-	 // Mostrar diálogo y comprobar respuesta
-	    Optional<ButtonType> response = dialog.showAndWait();
-	    if (response.isPresent() && response.get() == confirmarCombraBtn) {
-	        System.out.println("Compra confirmada");
-	        // procesar compra aquí
-	    } else {
-	        System.out.println("Compra cancelada");
-	    }
+		// Total
+		double total = tablaDialog.getItems().stream()
+				.mapToDouble(producto -> producto.getPrecio() * producto.getCantidad()).sum();
+		Label lblTotal = new Label("Total: " + String.format("%.2f €", total));
 
-		
+		VBox content = new VBox(10, tablaDialog, lblTotal);
+		content.setPrefSize(335, 400);
+		dialog.getDialogPane().setContent(content);
+
+		// Mostrar diálogo y comprobar respuesta
+		Optional<ButtonType> response = dialog.showAndWait();
+		if (response.isPresent() && response.get() == confirmarCombraBtn) {
+			productoRepository.actualizaAlmacenConVenta(tablaProductos.getItems());
+			tablaProductos.setItems(FXCollections.observableArrayList(new ArrayList<Producto>()));
+		} else {
+			System.out.println("Compra cancelada");
+		}
+
 	}
 }

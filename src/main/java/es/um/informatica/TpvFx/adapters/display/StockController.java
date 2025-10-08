@@ -2,14 +2,13 @@ package es.um.informatica.TpvFx.adapters.display;
 
 import java.io.IOException;
 import java.util.Optional;
-import java.util.stream.Collectors;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import es.um.informatica.TpvFx.App;
-import es.um.informatica.TpvFx.Constantes;
 import es.um.informatica.TpvFx.adapters.persistence.ProductoDTO;
-import es.um.informatica.TpvFx.adapters.persistence.ProductoMapper;
-import es.um.informatica.TpvFx.adapters.persistence.ProductoPersistenceApapter;
-import es.um.informatica.TpvFx.adapters.repository.ProductoRepository;
+import es.um.informatica.TpvFx.adapters.repository.ProductoRepositoryImpl;
+import es.um.informatica.TpvFx.application.port.ProductoRepository;
 import es.um.informatica.TpvFx.model.Producto;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -23,13 +22,14 @@ import javafx.scene.control.Label;
 import javafx.scene.control.Spinner;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
-import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
 import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.layout.GridPane;
 import javafx.util.Callback;
 
 public class StockController {
+
+	private static final Logger logger = Logger.getLogger(StockController.class.getName());
 
 	@FXML
 	private TableView<Producto> tablaProductos;
@@ -55,12 +55,11 @@ public class StockController {
 
 	private ProductoRepository productoRepository;
 
-	// Este metodo se ejecuta al cargar la pantalla correspondiente
 	@FXML
+	// Metodo que inicializa la pantalla
 	public void initialize() {
 		// Persistence adapter para leer/guardar sobre XML
-		productoRepository = ProductoRepository.getInscante();
-		productoRepository.cargaProductos();
+		productoRepository = ProductoRepositoryImpl.getInscante();
 		// Creo los manejadores para los campos de las columnas
 		colCodigo.setCellValueFactory(new PropertyValueFactory<>("codigo"));
 		colDescripcion.setCellValueFactory(new PropertyValueFactory<>("descripcion"));
@@ -72,8 +71,7 @@ public class StockController {
 		try {
 			lista = FXCollections.observableArrayList(productoRepository.getProductos());
 		} catch (Exception e) {
-			// FIXME: Cambiar por log
-			e.printStackTrace();
+			logger.log(Level.SEVERE, "Error inicializando los productos", e);
 		}
 
 		// Listener para las filas seleccionadas
@@ -82,6 +80,7 @@ public class StockController {
 				this.productoSeleccionado = newSelection;
 			}
 		});
+		// Precargamos la informacion para el panel de confirmacion
 		inicializaConfirmacion();
 		// Pasar lista a la tabla
 		tablaProductos.setItems(lista);
@@ -95,6 +94,8 @@ public class StockController {
 	}
 
 	@FXML
+	// Metodo para crear un nuevo producto y anadirlo al stock
+	// Carga el componente visual para ello
 	private void aniadirStockDialog() {
 		Dialog<ProductoDTO> dialog = new Dialog<>();
 		dialog.setTitle("Alta de nuevo Producto");
@@ -103,7 +104,6 @@ public class StockController {
 		ButtonType guardarButtonType = new ButtonType("Guardar", ButtonBar.ButtonData.OK_DONE);
 		dialog.getDialogPane().getButtonTypes().addAll(guardarButtonType, ButtonType.CANCEL);
 
-		// --- Contenido del formulario ---
 		GridPane grid = new GridPane();
 		grid.setHgap(10);
 		grid.setVgap(10);
@@ -111,7 +111,6 @@ public class StockController {
 		TextField descripcionArea = new TextField();
 		Spinner<Integer> cantidadSpinner = new Spinner<>(1, 1000, 1);
 		TextField precioField = new TextField();
-
 
 		grid.add(new Label("Descripción:"), 0, 1);
 		grid.add(descripcionArea, 1, 1);
@@ -122,15 +121,23 @@ public class StockController {
 
 		dialog.getDialogPane().setContent(grid);
 
-		// --- Convertir el resultado en un objeto Product ---
+		// Conversor del resultado del dialogo a Producto
 		dialog.setResultConverter(new Callback<ButtonType, ProductoDTO>() {
 			@Override
 			public ProductoDTO call(ButtonType button) {
 				if (button == guardarButtonType) {
 					try {
-						Producto producto = tablaProductos.getItems().get(tablaProductos.getItems().size()-1);						
+						// Obtenemos el ultimo producto para saber su codigo
+						Producto producto = tablaProductos.getItems().get(tablaProductos.getItems().size() - 1);
 						float precio = Float.parseFloat(precioField.getText());
-						tablaProductos.getItems().add(new Producto(String.valueOf(Integer.parseInt(producto.getCodigo())+1), descripcionArea.getText(), cantidadSpinner.getValue(), precio));
+						// Creo el nuevo producto
+						Producto nuevoProducto = new Producto(
+								String.valueOf(Integer.parseInt(producto.getCodigo()) + 1), descripcionArea.getText(),
+								cantidadSpinner.getValue(), precio);
+						// Actualizo el stock de productos
+						productoRepository.aniadirProducto(nuevoProducto);
+						// Actualizo el componente visual de la tabla
+						tablaProductos.getItems().add(nuevoProducto);
 						return null;
 					} catch (NumberFormatException ex) {
 						Alert error = new Alert(Alert.AlertType.ERROR, "Precio inválido", ButtonType.OK);
@@ -140,29 +147,38 @@ public class StockController {
 				}
 				return null;
 			}
-		});	
-		
-		// --- Mostrar el dialogo y obtener el resultado ---
-				dialog.showAndWait().ifPresent(producto -> {
-					System.out.println("Producto creado: " + producto);
-				});
+		});
+
+		// Muestra el dialogo y espera a que se cierre
+		dialog.showAndWait().ifPresent(producto -> {
+			logger.info("Producto creado: " + producto.getDescripcion());
+		});
 	}
 
 	@FXML
+	// Navega a la pantalla de tienda
 	private void irATienda() throws IOException {
 		App.setRoot("tiendaMain");
 	}
 
 	@FXML
+	// Elimino el producto seleccionado del stock
 	private void eliminarDeStock() {
 		if (this.productoSeleccionado != null) {
+			// Actualizo la descripcion del panel de confirmacion
 			confirmarEliminacion.setContentText(
 					"¿Está seguro que quiere eliminar " + this.productoSeleccionado.getDescripcion() + "?");
+			// Abro el panel de confirmacion y espero la respuesta del usuario
 			Optional<ButtonType> result = confirmarEliminacion.showAndWait();
 			if (result.get() == ButtonType.OK) {
+				// Elimino el producto del componente visual de la tabla
 				tablaProductos.getItems().remove(this.productoSeleccionado);
-				this.productoSeleccionado = null;				
+				// Elimino el producto del stock de productos
+				this.productoRepository.eliminarProducto(productoSeleccionado);
+				this.productoSeleccionado = null;
+				// Refresco la tabla para que se vea el valor actualizado
 				tablaProductos.refresh();
+				// Quito el elemento seleccionado de la tabla
 				tablaProductos.getSelectionModel().clearSelection();
 
 			}
@@ -171,22 +187,24 @@ public class StockController {
 	}
 
 	@FXML
+	// Aumenta el número de stock de un elemento seleccionado
 	private void aumentarStock() {
 		if (this.productoSeleccionado != null && this.aumentarCantidadTextField.getText() != null
 				&& this.aumentarCantidadTextField.getText().length() > 0) {
 			try {
 				int incremento = Integer.parseInt(aumentarCantidadTextField.getText());
 				this.productoSeleccionado.setCantidad(this.productoSeleccionado.getCantidad() + incremento);
+				// TODO: Falta trasladar el aumento a productoRepository
 				aumentarCantidadTextField.setText("");
 				tablaProductos.refresh();
 			} catch (NumberFormatException e) {
-				// FIXME log
-				e.printStackTrace();
+				logger.log(Level.SEVERE, "Error con el formato numerico", e);
 			}
 		}
 	}
 
 	@FXML
+	// Reduce la cantidad de stock del elemento seleccionado
 	private void reducirStock() {
 		if (this.productoSeleccionado != null && this.reducirCantidadTextField.getText() != null
 				&& this.reducirCantidadTextField.getText().length() > 0) {
@@ -197,11 +215,11 @@ public class StockController {
 				} else {
 					this.productoSeleccionado.setCantidad(this.productoSeleccionado.getCantidad() - decremento);
 				}
+				// TODO: Falta trasladar el aumento a productoRepository
 				reducirCantidadTextField.setText("");
 				tablaProductos.refresh();
 			} catch (NumberFormatException e) {
-				// FIXME log
-				e.printStackTrace();
+				logger.log(Level.SEVERE, "Error con el formato numerico", e);
 			}
 		}
 	}
